@@ -22,11 +22,7 @@ class Hack99y(ctk.CTk):
 
         # شعار ASCII
         self.ascii_label = ctk.CTkLabel(self, text="""
-   _  _    _    ____ _  _______  ___  _   _ 
-  | || |  / \  / ___| |/ / ___||_ _|| | | |
-  | || |_/ _ \| |   | ' /|___ \ | | | |_| |
-  |__   _/ ___ \ |___| . \ ___) || |  \__, |
-     |_|/_/   \_\____|_|\_\____/|___|  |_|  
+    
         """, font=("Courier", 12), text_color="#00FF00")
         self.ascii_label.pack(pady=10)
 
