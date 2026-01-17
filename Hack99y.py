@@ -113,4 +113,4 @@ class Hack99y(ctk.CTk):
             
             time.sleep(0.01) # تأخير بسيط لضمان استقرار الكرت
 
-if __
+
